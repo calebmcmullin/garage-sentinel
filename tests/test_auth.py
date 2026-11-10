@@ -80,5 +80,27 @@ async def test_callback_link_oauth_account(client, standard_user, login_user, te
         assert response.status_code in (302, 307)
 
         oauth_accounts = await auth_services.get_oauth_accounts(user)
+
         assert len(await database.get_oauth_accounts()) == 2
         assert oauth_accounts[0].user_id and oauth_accounts[1].user_id == user.id
+
+@pytest.mark.asyncio
+async def test_warn_matching_email(client, standard_user, login_user, test_database):
+    user, oauth_account = standard_user
+
+    with patch(
+            'routes.auth.get_oauth_user_data',
+            return_value={
+                'username': 'discord_user123',
+                'provider': 'discord',
+                'provider_id': 'discord_user123',
+                'provider_email': oauth_account.provider_email
+            }
+    ):
+        response = client.get('/api/auth/callback/discord', follow_redirects=False)
+
+        assert response.status_code in (302, 307)
+        assert response.headers.get('Location') == "/registration/confirm"
+
+        # Confirm registering a new account
+        response = client.post('/api/auth/re', follow_redirects=False)
