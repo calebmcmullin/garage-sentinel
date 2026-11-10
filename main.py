@@ -7,8 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from exceptions.handlers import http_exception_handler
 from config import SESSION_SECRET
 from routes import (
-    home, home_login, home_photos,
-    home_clips, home_account, telemetry, docs,
+    home, home_login, home_photos, home_clips, home_account, telemetry, docs,
     file, auth, users, admin
 )
 
