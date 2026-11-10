@@ -10,7 +10,7 @@ def test_accepts_logged_in(client, standard_user, login_user):
     response = client.get("/api/users/me")
 
     assert response.status_code == 200
-    assert response.json() == user.model_dump()
+    assert response.json()['user'] == user.model_dump()
 
 def test_me_username(client, standard_user, login_user):
     user, oauth_account = standard_user
@@ -24,7 +24,7 @@ def test_me_username(client, standard_user, login_user):
 
     # Checks if username was actually updated
     response = client.get("/api/users/me")
-    assert response.json()['username'] == "updated"
+    assert response.json()['user']['username'] == "updated"
 
 def test_me_delete(client, standard_user, login_user):
     user, oauth_account = standard_user
