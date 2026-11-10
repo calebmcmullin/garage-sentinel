@@ -154,6 +154,73 @@ async def home():
                 color: #52525b;
                 font-size: 12px;
             }
+            /* Page entrance animations */
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(25px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .glow {
+                animation: fadeIn 1.8s ease-out both;
+            }
+            
+            .card {
+                animation: fadeInUp 0.9s ease-out both;
+            }
+            
+            .status {
+                animation: fadeInUp 0.6s ease-out 0.2s both;
+            }
+            
+            h1 {
+                animation: fadeInUp 0.7s ease-out 0.3s both;
+            }
+            
+            p {
+                animation: fadeInUp 0.7s ease-out 0.4s both;
+            }
+            
+            .warning {
+                animation: fadeInUp 0.7s ease-out 0.5s both;
+            }
+            
+            .buttons {
+                animation: fadeInUp 0.7s ease-out 0.6s both;
+            }
+            
+            footer {
+                animation: fadeIn 1s ease-out 0.8s both;
+            }
+            
+            /* Respect reduced-motion preferences */
+            @media (prefers-reduced-motion: reduce) {
+                .glow,
+                .card,
+                .status,
+                h1,
+                p,
+                .warning,
+                .buttons,
+                footer {
+                    animation: none;
+                }
+            }
         </style>
     </head>
 
