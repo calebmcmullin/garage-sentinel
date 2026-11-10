@@ -257,6 +257,7 @@ async def confirm_registration(request: Request):
 
     request.session['user_id'] = new_user.id
 
+    await auth_services.delete_pending_registration(pending.token_hash)
     await auth_services.record_login(new_user)
 
     return RedirectResponse(

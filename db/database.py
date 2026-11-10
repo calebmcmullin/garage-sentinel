@@ -312,6 +312,18 @@ async def create_pending_registration(token_hash: str, create_pending: CreatePen
             provider_email=create_pending.provider_email
         )
 
+async def delete_pending_registration(token_hash: str) -> bool:
+    async with get_connection() as conn:
+        await conn.execute("""
+        DELETE FROM pending_registrations
+        WHERE token_hash = ?
+        """, (token_hash,)
+        )
+
+        await conn.commit()
+
+        return True
+
 async def find_pending_registration(token_hash: str) -> PendingRegistration | None:
     async with get_connection() as conn:
         cursor = await conn.execute("""
@@ -333,11 +345,11 @@ async def find_pending_registration(token_hash: str) -> PendingRegistration | No
             provider_email=row[4]
         )
 
-async def delete_expired_registrations():
+async def delete_expired_registrations(expiration_minutes: int):
     async with get_connection() as conn:
         await conn.execute("""
             DELETE FROM pending_registrations
-            WHERE created_at <= datetime('now', '-10 minutes')
-        """)
+            WHERE created_at <= datetime('now', ?)
+        """, (f"-{expiration_minutes} minutes",))
 
         await conn.commit()

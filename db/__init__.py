@@ -10,4 +10,6 @@ from db.database import (
     update_username,
     log_activity,
     get_oauth_account,
+    create_pending_registration,
+    delete_expired_registrations
 )

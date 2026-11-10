@@ -55,6 +55,9 @@ async def find_pending_registration(token: str) -> PendingRegistration | None:
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     return await database.find_pending_registration(token_hash=token_hash)
 
+async def delete_pending_registration(token_hash: str) -> bool:
+    return await database.delete_pending_registration(token_hash)
+
 async def check_matching_email(provider_email) -> bool:
     match_id = await database.get_user_id_by_provider_email(provider_email)
     return match_id is not None

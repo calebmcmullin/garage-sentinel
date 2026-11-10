@@ -65,6 +65,10 @@ async def test_login(request: Request, user_id: int):
     request.session['user_id'] = user_id
     return {'Ok': True}
 
+@app.get("/pytest/session")
+async def inspect_session(request: Request):
+    return dict(request.session)
+
 @pytest.fixture
 def client():
     with TestClient(app) as client:

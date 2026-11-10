@@ -1,5 +1,5 @@
 import pytest
-from models import user, OauthAccount
+from models import User, OauthAccount, PendingRegistration
 from services import auth_services, user_services
 from unittest.mock import AsyncMock, patch
 import db.database as database
@@ -85,7 +85,7 @@ async def test_callback_link_oauth_account(client, standard_user, login_user, te
         assert oauth_accounts[0].user_id and oauth_accounts[1].user_id == user.id
 
 @pytest.mark.asyncio
-async def test_warn_matching_email(client, standard_user, login_user, test_database):
+async def test_pending_registration(client, standard_user, login_user, test_database):
     user, oauth_account = standard_user
 
     with patch(
@@ -98,9 +98,34 @@ async def test_warn_matching_email(client, standard_user, login_user, test_datab
             }
     ):
         response = client.get('/api/auth/callback/discord', follow_redirects=False)
+        token = client.get('/pytest/session').json()['pending_registration']
 
         assert response.status_code in (302, 307)
         assert response.headers.get('Location') == "/registration/confirm"
+        assert isinstance(await auth_services.find_pending_registration(token), PendingRegistration)
 
-        # Confirm registering a new account
-        response = client.post('/api/auth/re', follow_redirects=False)
+        # Confirm pending registering
+        response = client.post('/api/auth/registration/confirm', follow_redirects=False)
+
+        assert response.headers.get('Location') == "/gallery"
+        assert isinstance(await database.get_user_by_id(user.id), User)
+
+@pytest.mark.asyncio
+async def test_pending_registration_cleanup(client, standard_user, login_user, test_database):
+    user, oauth_account = standard_user
+
+    with patch(
+            'routes.auth.get_oauth_user_data',
+            return_value={
+                'username': 'discord_user123',
+                'provider': 'discord',
+                'provider_id': 'discord_user123',
+                'provider_email': oauth_account.provider_email
+            }
+    ):
+        client.get('/api/auth/callback/discord', follow_redirects=False)
+        token = client.get('/pytest/session').json()['pending_registration']
+
+        await database.delete_expired_registrations(0)
+
+        assert await auth_services.find_pending_registration(token) is None
