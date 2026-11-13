@@ -5,6 +5,7 @@ from routes.auth import get_current_user
 
 router = APIRouter()
 
+
 @router.get('/gallery', response_class=HTMLResponse)
 async def photos(request: Request):
     if await get_current_user(request) is None:
@@ -66,7 +67,7 @@ async def photos(request: Request):
             box-shadow: 0 16px 40px rgba(0,0,0,.15);
             transition: background .2s, border-color .2s, transform .2s;
             animation: fadeDown 0.35s ease-out;
-            
+
         }
         .upload:hover, .upload.dragging {
             border-color: var(--accent); background: #172433; transform: translateY(-1px);
@@ -100,6 +101,7 @@ async def photos(request: Request):
             gap: 18px; margin-top: 20px;
         }
         .card {
+            position: relative;
             overflow: hidden; border-radius: 14px; cursor: pointer;
             border: 1px solid var(--border);
             background: linear-gradient(180deg, rgba(17,24,33,.95), rgba(13,19,26,.95));
@@ -125,6 +127,36 @@ async def photos(request: Request):
         .filename {
             padding: 13px 14px; font-size: 13px; font-weight: 500;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .delete-button {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 8px;
+            background: #f77070;
+            color: white;
+            cursor: pointer;
+            z-index: 2;
+            opacity: 0;
+            transform: translateY(4px);
+            transition: opacity .2s, transform .2s, background .2s;
+        }
+        .card:hover .delete-button,
+        .card:focus-within .delete-button {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .delete-button:hover { background: #e05252; }
+        .delete-button:disabled { opacity: .6; cursor: wait; }
+        .delete-button svg { pointer-events: none; }
+        @media (hover: none) {
+            .delete-button { opacity: 1; transform: none; }
         }
         .empty { grid-column: 1 / -1; color: var(--muted); font-size: 14px; padding: 22px 0; }
         @media (max-width: 600px) {
@@ -197,7 +229,7 @@ async def photos(request: Request):
         .eyebrow-container {
             animation: fadeDown 0.35s ease-out;
         }
-        
+
         @keyframes fadeDown {
             from {
                 opacity: 0;
@@ -220,6 +252,135 @@ async def photos(request: Request):
                 transform: translateY(0);
             }
         }
+        .delete-dialog {
+            position: fixed;
+            inset: 0;
+            margin: auto;
+            width: min(400px, calc(100% - 32px));
+            padding: 30px;
+            background: #111821;
+            color: #edf3f8;
+            border: 1px solid #233041;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
+            animation: fadeDown 0.35s ease-out;
+        }
+
+        .delete-dialog::backdrop {
+            background: rgba(0, 0, 0, .7);
+            backdrop-filter: blur(5px);
+        }
+
+        .dialog-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .delete-dialog h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .delete-dialog p {
+            color: #8fa0b3;
+            font-size: 14px;
+            overflow-wrap: anywhere;
+            margin-bottom: 26px;
+        }
+
+        .dialog-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .dialog-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .dialog-cancel {
+            background: #151e28;
+            color: white;
+            border: 1px solid #233041;
+        }
+
+        .dialog-confirm {
+            background: #f77070;
+            color: white;
+            border: none;
+        }
+        .delete-preview {
+            display: block;
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            background: #0b0f14;
+        }
+        .dialog-confirm:hover {
+            background: #e05252;
+        }
+
+        /* Full-resolution photo viewer */
+        .photo-dialog {
+            position: fixed;
+            inset: 0;
+            margin: auto;
+            padding: 16px;
+            width: max-content;
+            max-width: 95vw;
+            max-height: 95vh;
+            overflow: auto;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .65);
+            animation: fadeDown 0.35s ease-out;
+        }
+        .photo-dialog::backdrop {
+            background: rgba(0, 0, 0, .85);
+            backdrop-filter: blur(8px);
+        }
+        .photo-dialog-image {
+            display: block;
+            max-width: calc(95vw - 34px);
+            max-height: calc(95vh - 100px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        .photo-dialog-name {
+            max-width: calc(95vw - 34px);
+            margin-top: 12px;
+            text-align: center;
+            font-size: 24px;
+            color: var(--muted);
+            overflow-wrap: anywhere;
+        }
+        .photo-dialog-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 3;
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 9px;
+            background: rgba(11, 15, 20, .85);
+            color: white;
+            font-size: 26px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .photo-dialog-close:hover { background: #f77070; }
     </style>
 </head>
 <body>
@@ -294,11 +455,11 @@ async def photos(request: Request):
             dropzone.classList.remove('dragging');
             await uploadPhotos(event.dataTransfer.files);
         };
-        
+
         const visibleCount = 15;
         let files = [];
         let displayed = 0;
-        
+
         async function getFiles() {
             const response = await fetch('/api/photos');
             if (!response.ok) throw new Error('Could not load photos');
@@ -320,7 +481,7 @@ async def photos(request: Request):
                         method: 'POST',
                         body: data
                     });
-                    
+
                     if (!response.ok) {
                         const error = await response.json().catch(() => ({}));
                         throw new Error('Upload failed: ' + (error.detail || response.statusText));
@@ -332,38 +493,56 @@ async def photos(request: Request):
             }
             status.textContent = '✅ Photos uploaded successfully!';
             await getFiles();
+            displayed = 0;
+            grid.replaceChildren();
             await loadPhotos();
         }
-        
+
         async function loadUsername() {
             const response = await fetch("/api/users/me");
             const data = await response.json();
-            
+
             console.log(data);
-            
+
             document.getElementById("eyebrow").textContent = `${data.user.username}'s Photos`;
         }
         loadUsername();
-        
+
+        function updateGalleryUI() {
+            photoCount.textContent = displayed + (displayed === 1 ? ' photo' : ' photos');
+            const showMore = document.getElementById('show-more');
+            if (showMore) showMore.style.display = displayed < files.length ? '' : 'none';
+
+            grid.querySelectorAll('.empty').forEach(element => element.remove());
+            if (files.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'empty';
+                empty.textContent = '📷 No photos uploaded yet.';
+                grid.appendChild(empty);
+            }
+        }
+
         async function loadPhotos() {
             try {
-                if (files.length === 0) {
+                if (files.length === 0 && displayed === 0) {
                     await getFiles();
                 }
-                
+
                 for (const photo of files.slice(displayed, displayed + visibleCount)) {
-                    // Staggered effect
                     await new Promise(resolve => setTimeout(resolve, 100));
-                    
+
                     const name = typeof photo === 'string' ? photo : photo.storage_name;
                     if (typeof name !== 'string') continue;
                     const displayName = typeof photo === 'string' ? photo : (photo.filename || name);
                     const thumb_url = `/api/file/${encodeURIComponent(name)}?size=thumbnail`;
-                    const original_url = `/api/file/${encodeURIComponent(name)}?`;
+                    const original_url = `/api/file/${encodeURIComponent(name)}`;
+
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.tabIndex = 0;
                     card.setAttribute('role', 'link');
+                    card.setAttribute('aria-label', `Open ${displayName}`);
+
                     const preview = document.createElement('div');
                     preview.className = 'preview';
                     const img = document.createElement('img');
@@ -371,53 +550,207 @@ async def photos(request: Request):
                     img.alt = displayName;
                     img.loading = 'lazy';
                     preview.appendChild(img);
+
                     const label = document.createElement('div');
                     label.className = 'filename';
                     label.textContent = displayName;
                     label.title = displayName;
                     card.append(preview, label);
-                    const openPhoto = () => window.open(original_url, '_blank', 'noopener,noreferrer');
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'delete-button';
+                    deleteButton.title = 'Delete photo';
+                    deleteButton.setAttribute('aria-label', `Delete ${displayName}`);
+                    deleteButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                             viewBox="0 0 24 24" fill="none" stroke="white"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"/>
+                            <path d="M8 6V4h8v2"/>
+                            <path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/>
+                            <path d="M14 11v6"/>
+                        </svg>`;
+
+                    deleteButton.onclick = async (event) => {
+                        event.stopPropagation();
+
+                        const confirmed = await confirmDeletePhoto(displayName, name);
+                        if (!confirmed) return;
+
+                        deleteButton.disabled = true;
+
+                        try {
+                            const response = await fetch(
+                                `/api/file/${encodeURIComponent(name)}`,
+                                {
+                                    method: 'DELETE',
+                                    credentials: 'same-origin'
+                                }
+                            );
+
+                            if (!response.ok) {
+                                const error = await response.json().catch(() => ({}));
+
+                                throw new Error(
+                                    typeof error.detail === 'string'
+                                        ? error.detail
+                                        : `Delete failed (${response.status})`
+                                );
+                            }
+
+                            const index = files.findIndex(item =>
+                                (typeof item === 'string' ? item : item.storage_name) === name
+                            );
+
+                            if (index !== -1) files.splice(index, 1);
+
+                            card.remove();
+                            displayed = Math.max(0, displayed - 1);
+
+                            updateGalleryUI();
+
+                            status.textContent = `Deleted ${displayName}`;
+
+                        } catch (error) {
+                            status.textContent = error.message;
+                            deleteButton.disabled = false;
+                        }
+                    };
+                    deleteButton.onkeydown = event => event.stopPropagation();
+                    card.appendChild(deleteButton);
+
+                    const openPhoto = () => openPhotoDialog(original_url, displayName);
                     card.onclick = openPhoto;
                     card.onkeydown = (event) => {
-                        if (event.key === 'Enter') openPhoto();
+                        if (event.target === card && event.key === 'Enter') openPhoto();
                     };
                     grid.appendChild(card);
                     displayed++;
                 }
-                photoCount.textContent = displayed + (displayed === 1 ? ' photo' : ' photos');
-                if (displayed === 0) {
-                    const empty = document.createElement('p');
-                    empty.className = 'empty';
-                    empty.textContent = '📷 No photos uploaded yet.';
-                    grid.appendChild(empty);
-                }
+                updateGalleryUI();
             } catch (error) {
                 status.textContent = error.message;
             }
-            if (displayed === files.length) {
-                document.getElementById('show-more')?.remove()
-            }
         }
+
         async function logout(event) {
             event.preventDefault();
-        
+
             try {
                 const response = await fetch('/api/auth/logout', {
                     method: 'POST'
                 });
-        
+
                 if (!response.ok) {
                     throw new Error('Logout failed');
                 }
-        
+
                 window.location.href = '/login';
-        
+
             } catch (error) {
                 console.error(error);
             }
         }
+        function openPhotoDialog(imageUrl, displayName) {
+            const dialog = document.getElementById('photoDialog');
+            const image = document.getElementById('photoDialogImage');
+            const filename = document.getElementById('photoDialogName');
+
+            image.src = imageUrl;
+            image.alt = displayName;
+            filename.textContent = displayName;
+            dialog.showModal();
+        }
+
+        function confirmDeletePhoto(displayName, storageName) {
+            return new Promise(resolve => {
+                const dialog = document.getElementById('deleteDialog');
+                const message = document.getElementById('deleteMessage');
+                const confirmButton = document.getElementById('confirmDelete');
+                const cancelButton = document.getElementById('cancelDelete');
+
+                const preview = document.getElementById('deletePreview');
+                preview.src = `/api/file/${encodeURIComponent(storageName)}?size=thumbnail`;
+
+                message.textContent = `Permanently delete "${displayName}"? This cannot be undone.`;
+
+                const cleanup = () => {
+                    confirmButton.removeEventListener('click', onConfirm);
+                    cancelButton.removeEventListener('click', onCancel);
+                    dialog.removeEventListener('cancel', onCancel);
+                    dialog.removeEventListener('close', onClose);
+                };
+
+                const finish = result => {
+                    cleanup();
+                    dialog.close();
+                    resolve(result);
+                };
+
+                const onConfirm = () => finish(true);
+                const onCancel = event => {
+                    event?.preventDefault();
+                    finish(false);
+                };
+
+                const onClose = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                confirmButton.addEventListener('click', onConfirm);
+                cancelButton.addEventListener('click', onCancel);
+                dialog.addEventListener('cancel', onCancel);
+                dialog.addEventListener('close', onClose);
+
+                dialog.showModal();
+            });
+        }
+
         loadPhotos();
+    </script>
+
+    <dialog id="deleteDialog" class="delete-dialog">
+        <div class="dialog-icon">🗑️</div>
+        <h2>Delete photo?</h2>
+        <p id="deleteMessage"></p>
+
+        <img id="deletePreview" class="delete-preview" src="" alt="Photo preview">
+
+        <div class="dialog-actions">
+            <button id="cancelDelete" class="dialog-cancel">
+                Cancel
+            </button>
+            <button id="confirmDelete" class="dialog-confirm">
+                Delete
+            </button>
+        </div>
+    </dialog>
+
+    <dialog id="photoDialog" class="photo-dialog" aria-label="Photo viewer">
+        <button type="button" id="closePhotoDialog" class="photo-dialog-close" aria-label="Close photo">&times;</button>
+        <img id="photoDialogImage" class="photo-dialog-image" alt="Full-size photo">
+        <p id="photoDialogName" class="photo-dialog-name"></p>
+    </dialog>
+
+    <script>
+        const photoDialog = document.getElementById('photoDialog');
+        document.getElementById('closePhotoDialog').onclick = () => photoDialog.close();
+
+        photoDialog.addEventListener('click', event => {
+            // Clicks on the backdrop land on the dialog element itself.
+            if (event.target !== photoDialog) return;
+            const bounds = photoDialog.getBoundingClientRect();
+            const outside = event.clientX < bounds.left || event.clientX > bounds.right ||
+                            event.clientY < bounds.top || event.clientY > bounds.bottom;
+            if (outside) photoDialog.close();
+        });
+
+        photoDialog.addEventListener('close', () => {
+            document.getElementById('photoDialogImage').removeAttribute('src');
+        });
     </script>
 </body>
 </html>"""
-

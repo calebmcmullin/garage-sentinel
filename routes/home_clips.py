@@ -5,6 +5,7 @@ from routes.auth import get_current_user
 
 router = APIRouter()
 
+
 @router.get('/clips', response_class=HTMLResponse)
 async def clips(request: Request):
     if await get_current_user(request) is None:
@@ -66,6 +67,7 @@ async def clips(request: Request):
             box-shadow: 0 16px 40px rgba(0,0,0,.15);
             transition: background .2s, border-color .2s, transform .2s;
             animation: fadeDown 0.35s ease-out;
+
         }
         .upload:hover, .upload.dragging {
             border-color: var(--accent); background: #172433; transform: translateY(-1px);
@@ -89,13 +91,17 @@ async def clips(request: Request):
             display: flex; justify-content: space-between; align-items: baseline;
             gap: 16px;
         }
-        .section-heading h2 { font-size: 23px; letter-spacing: -.02em; }
+        .section-heading h2 {
+            font-size: 23px;
+            letter-spacing: -.02em;
+        }
         #clipCount { font-size: 13px; color: var(--muted); }
         .grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
             gap: 18px; margin-top: 20px;
         }
         .card {
+            position: relative;
             overflow: hidden; border-radius: 14px; cursor: pointer;
             border: 1px solid var(--border);
             background: linear-gradient(180deg, rgba(17,24,33,.95), rgba(13,19,26,.95));
@@ -118,9 +124,46 @@ async def clips(request: Request):
             height: 100%;
             object-fit: cover;
         }
+        .preview video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
         .filename {
             padding: 13px 14px; font-size: 13px; font-weight: 500;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .delete-button {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 8px;
+            background: #f77070;
+            color: white;
+            cursor: pointer;
+            z-index: 2;
+            opacity: 0;
+            transform: translateY(4px);
+            transition: opacity .2s, transform .2s, background .2s;
+        }
+        .card:hover .delete-button,
+        .card:focus-within .delete-button {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .delete-button:hover { background: #e05252; }
+        .delete-button:disabled { opacity: .6; cursor: wait; }
+        .delete-button svg { pointer-events: none; }
+        @media (hover: none) {
+            .delete-button { opacity: 1; transform: none; }
         }
         .empty { grid-column: 1 / -1; color: var(--muted); font-size: 14px; padding: 22px 0; }
         @media (max-width: 600px) {
@@ -190,44 +233,6 @@ async def clips(request: Request):
             cursor: pointer;
             transition: border-color .18s, transform .18s, box-shadow .18s;
         }
-        video {
-            display: block;
-            width: 100%;
-            max-width: 900px;
-            aspect-ratio: 16 / 9;
-            margin: 32px auto;
-            background: #0a0a0f;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            object-fit: contain;
-            overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        
-        video:hover {
-            box-shadow:
-                0 18px 50px rgba(0, 0, 0, 0.4),
-                0 0 35px rgba(120, 100, 255, 0.15);
-        }
-        
-        video:focus {
-            outline: 2px solid rgba(120, 100, 255, 0.5);
-            outline-offset: 4px;
-        }
-        
-        .preview video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            pointer-events: none;
-        }
-        
-        @media (max-width: 600px) {
-            video {
-                margin: 20px auto;
-                border-radius: 12px;
-            }
-        }
         .eyebrow-container {
             animation: fadeDown 0.35s ease-out;
         }
@@ -254,6 +259,134 @@ async def clips(request: Request):
                 transform: translateY(0);
             }
         }
+        .delete-dialog {
+            position: fixed;
+            inset: 0;
+            margin: auto;
+            width: min(400px, calc(100% - 32px));
+            padding: 30px;
+            background: #111821;
+            color: #edf3f8;
+            border: 1px solid #233041;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
+            animation: fadeDown 0.35s ease-out;
+        }
+
+        .delete-dialog::backdrop {
+            background: rgba(0, 0, 0, .7);
+            backdrop-filter: blur(5px);
+        }
+
+        .dialog-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .delete-dialog h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .delete-dialog p {
+            color: #8fa0b3;
+            font-size: 14px;
+            overflow-wrap: anywhere;
+            margin-bottom: 26px;
+        }
+
+        .dialog-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .dialog-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .dialog-cancel {
+            background: #151e28;
+            color: white;
+            border: 1px solid #233041;
+        }
+
+        .dialog-confirm {
+            background: #f77070;
+            color: white;
+            border: none;
+        }
+        .delete-preview {
+            display: block;
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            background: #0b0f14;
+        }
+        .dialog-confirm:hover {
+            background: #e05252;
+        }
+
+        /* Full-resolution video viewer */
+        .video-dialog {
+            position: fixed;
+            inset: 0;
+            margin: auto;
+            padding: 16px;
+            width: min(1000px, 95vw);
+            max-width: 95vw;
+            max-height: 95vh;
+            overflow: auto;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .65);
+            animation: fadeDown 0.35s ease-out;
+        }
+        .video-dialog::backdrop {
+            background: rgba(0, 0, 0, .85);
+            backdrop-filter: blur(8px);
+        }
+        .video-dialog-image {
+            display: block;
+            width: 100%;
+            max-height: calc(95vh - 120px);
+            height: auto;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        .video-dialog-name {
+            max-width: calc(95vw - 34px);
+            margin-top: 12px;
+            text-align: center;
+            font-size: 24px;
+            color: var(--muted);
+            overflow-wrap: anywhere;
+        }
+        .video-dialog-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 3;
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 9px;
+            background: rgba(11, 15, 20, .85);
+            color: white;
+            font-size: 26px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .video-dialog-close:hover { background: #f77070; }
     </style>
 </head>
 <body>
@@ -280,8 +413,8 @@ async def clips(request: Request):
             <div class="eyebrow" id="eyebrow"></div>
             <h1>Every clip, one place.</h1>
             <p class="intro">Upload, browse, and relive your favourite moments.</p>
-        </div class="eyebrow-container">
-        
+        </div>
+
         <div class="upload" id="dropzone" role="button" tabindex="0" aria-label="Upload videos">
             <div class="upload-icon">📹️</div>
             <h2>Drop your clips here</h2>
@@ -290,52 +423,55 @@ async def clips(request: Request):
             <input type="file" id="fileInput" accept=".mp4,video/mp4" multiple hidden>
         </div>
         <div id="status" role="status" aria-live="polite"></div>
-        
+
         <div class="section-heading">
-        <h2>My Clips</h2>
-        <span id="clipCount"></span>
+            <h2>My Clips</h2>
+            <span id="clipCount"></span>
         </div>
         <div class="grid" id="fileGrid"></div>
         <div id="show-more" class="show-more-container">
             <button class=show-more-button onClick=loadVideos()>Show more</button>
         </div>
-        
     </main>
     <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
         const grid = document.getElementById('fileGrid');
-        const clipCount = document.getElementById('clipCount');
         const status = document.getElementById('status');
-        const dropzone = document.getElementById("dropzone");
-        const fileInput = document.getElementById("fileInput");
-    
-        // Click to browse
-        dropzone.addEventListener("click", () => fileInput.click());
-    
-        // Upload selected files
-        fileInput.addEventListener("change", () => {
-            uploadClips(fileInput.files);
-        });
-    
-        // Drag and drop
-        dropzone.addEventListener("dragover", (e) => {
-            e.preventDefault();
-        });
-    
-        dropzone.addEventListener("drop", (e) => {
-            e.preventDefault();
-            uploadClips(e.dataTransfer.files);
-        });
-        
-        async function loadUsername() {
-            const response = await fetch("/api/users/me");
-            const data = await response.json();
-            
-            console.log(data);
-            
-            document.getElementById("eyebrow").textContent = `${data.user.username}'s Clips`;
+        const clipCount = document.getElementById('clipCount');
+
+        dropzone.onclick = () => fileInput.click();
+        dropzone.onkeydown = (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                fileInput.click();
+            }
+        };
+        fileInput.onchange = async () => {
+            await uploadClips(fileInput.files);
+            fileInput.value = '';
+        };
+        dropzone.ondragover = (event) => {
+            event.preventDefault();
+            dropzone.classList.add('dragging');
+        };
+        dropzone.ondragleave = () => dropzone.classList.remove('dragging');
+        dropzone.ondrop = async (event) => {
+            event.preventDefault();
+            dropzone.classList.remove('dragging');
+            await uploadClips(event.dataTransfer.files);
+        };
+
+        const visibleCount = 15;
+        let files = [];
+        let displayed = 0;
+
+        async function getFiles() {
+            const response = await fetch('/api/videos');
+            if (!response.ok) throw new Error('Could not load clips');
+                    files = await response.json();
         }
-        loadUsername();
-    
+
         async function uploadClips(files) {
             for (const file of files) {
                 const extension = file.name.split('.').pop().toLowerCase();
@@ -347,11 +483,11 @@ async def clips(request: Request):
                 data.append('file', file);
                 status.textContent = 'Uploading ' + file.name + '...';
                 try {
-                    const response = await fetch("/api/file", {
+                    const response = await fetch('/api/file', { 
                         method: 'POST',
                         body: data
                     });
-    
+
                     if (!response.ok) {
                         const error = await response.json().catch(() => ({}));
                         throw new Error('Upload failed: ' + (error.detail || response.statusText));
@@ -363,139 +499,283 @@ async def clips(request: Request):
             }
             status.textContent = '✅ Videos uploaded successfully!';
             await getFiles();
+            displayed = 0;
+            grid.replaceChildren();
             await loadVideos();
         }
-        
-        const visibleCount = 15;
-        let files = [];
-        let displayed = 0;
-        
-        async function getFiles() {
-        const response = await fetch('/api/videos');
-        if (!response.ok) throw new Error('Could not load videos');
-                files = await response.json();
+
+        async function loadUsername() {
+            const response = await fetch("/api/users/me");
+            const data = await response.json();
+
+            console.log(data);
+
+            document.getElementById("eyebrow").textContent = `${data.user.username}'s Clips`;
         }
-        
+        loadUsername();
+
+        function updateGalleryUI() {
+            clipCount.textContent = displayed + (displayed === 1 ? ' clip' : ' clips');
+            const showMore = document.getElementById('show-more');
+            if (showMore) showMore.style.display = displayed < files.length ? '' : 'none';
+
+            grid.querySelectorAll('.empty').forEach(element => element.remove());
+            if (files.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'empty';
+                empty.textContent = '📷 No clips uploaded yet.';
+                grid.appendChild(empty);
+            }
+        }
+
         async function loadVideos() {
             try {
-                if (files.length === 0) {
+                if (files.length === 0 && displayed === 0) {
                     await getFiles();
                 }
-        
+
                 for (const video of files.slice(displayed, displayed + visibleCount)) {
-                    // Staggered effect
                     await new Promise(resolve => setTimeout(resolve, 100));
-                
+
                     const name = typeof video === 'string' ? video : video.storage_name;
                     if (typeof name !== 'string') continue;
-        
-                    const displayName = typeof video === 'string'
-                        ? video
-                        : (video.filename || name);
-        
-                    const url = `/api/file/${encodeURIComponent(name)}`;
-        
-                    // Create card
+                    const displayName = typeof video === 'string' ? video : (video.filename || name);
+                    const original_url = `/api/file/${encodeURIComponent(name)}`;
+
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.tabIndex = 0;
-                    card.setAttribute('role', 'link');
-        
-                    // Create video preview
+                    card.setAttribute('role', 'button');
+                    card.setAttribute('aria-label', `Play ${displayName}`);
+
                     const preview = document.createElement('div');
                     preview.className = 'preview';
-        
                     const videoElement = document.createElement('video');
-                    videoElement.src = url;
+                    videoElement.src = original_url;
                     videoElement.preload = 'metadata';
                     videoElement.muted = true;
                     videoElement.playsInline = true;
                     videoElement.loop = true;
-        
-                    // Display a frame near the beginning
                     videoElement.addEventListener('loadedmetadata', () => {
                         if (Number.isFinite(videoElement.duration) && videoElement.duration > 1) {
                             videoElement.currentTime = 1;
                         }
                     });
-        
-                    // Play on hover
                     card.addEventListener('mouseenter', () => {
                         videoElement.play().catch(() => {});
                     });
-        
-                    // Pause and reset when leaving
                     card.addEventListener('mouseleave', () => {
                         videoElement.pause();
                         videoElement.currentTime = 0;
                     });
-        
                     preview.appendChild(videoElement);
-        
-                    // Filename
+
                     const label = document.createElement('div');
                     label.className = 'filename';
                     label.textContent = displayName;
                     label.title = displayName;
-        
                     card.append(preview, label);
-        
-                    // Open full video on click
-                    const openVideo = () => window.open(
-                        url,
-                        '_blank',
-                        'noopener,noreferrer'
-                    );
-        
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'delete-button';
+                    deleteButton.title = 'Delete clip';
+                    deleteButton.setAttribute('aria-label', `Delete ${displayName}`);
+                    deleteButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                             viewBox="0 0 24 24" fill="none" stroke="white"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"/>
+                            <path d="M8 6V4h8v2"/>
+                            <path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6"/>
+                            <path d="M14 11v6"/>
+                        </svg>`;
+
+                    deleteButton.onclick = async (event) => {
+                        event.stopPropagation();
+
+                        const confirmed = await confirmDeleteVideo(displayName, name);
+                        if (!confirmed) return;
+
+                        deleteButton.disabled = true;
+
+                        try {
+                            const response = await fetch(
+                                `/api/file/${encodeURIComponent(name)}`,
+                                {
+                                    method: 'DELETE',
+                                    credentials: 'same-origin'
+                                }
+                            );
+
+                            if (!response.ok) {
+                                const error = await response.json().catch(() => ({}));
+
+                                throw new Error(
+                                    typeof error.detail === 'string'
+                                        ? error.detail
+                                        : `Delete failed (${response.status})`
+                                );
+                            }
+
+                            const index = files.findIndex(item =>
+                                (typeof item === 'string' ? item : item.storage_name) === name
+                            );
+
+                            if (index !== -1) files.splice(index, 1);
+
+                            card.remove();
+                            displayed = Math.max(0, displayed - 1);
+
+                            updateGalleryUI();
+
+                            status.textContent = `Deleted ${displayName}`;
+
+                        } catch (error) {
+                            status.textContent = error.message;
+                            deleteButton.disabled = false;
+                        }
+                    };
+                    deleteButton.onkeydown = event => event.stopPropagation();
+                    card.appendChild(deleteButton);
+
+                    const openVideo = () => { videoElement.pause(); openVideoDialog(original_url, displayName); };
                     card.onclick = openVideo;
                     card.onkeydown = (event) => {
-                        if (event.key === 'Enter') openVideo();
+                        if (event.target === card && event.key === 'Enter') openVideo();
                     };
-        
                     grid.appendChild(card);
                     displayed++;
                 }
-        
-                // Update clip count
-                clipCount.textContent = displayed + (displayed === 1 ? ' video' : ' videos');
-        
-                // Empty gallery
-                if (displayed === 0) {
-                    const empty = document.createElement('p');
-                    empty.className = 'empty';
-                    empty.textContent = '📹 No videos uploaded yet.';
-                    grid.appendChild(empty);
-                }
-        
-                // Remove Show More when all videos are displayed
-                if (displayed >= files.length) {
-                    document.getElementById('show-more')?.remove();
-                }
-        
+                updateGalleryUI();
             } catch (error) {
                 status.textContent = error.message;
             }
         }
+
         async function logout(event) {
             event.preventDefault();
-        
+
             try {
                 const response = await fetch('/api/auth/logout', {
                     method: 'POST'
                 });
-        
+
                 if (!response.ok) {
                     throw new Error('Logout failed');
                 }
-        
+
                 window.location.href = '/login';
-        
+
             } catch (error) {
                 console.error(error);
             }
         }
+        function openVideoDialog(imageUrl, displayName) {
+            const dialog = document.getElementById('videoDialog');
+            const video = document.getElementById('videoDialogVideo');
+            const filename = document.getElementById('videoDialogName');
+
+            video.src = imageUrl;
+            video.load();
+            video.setAttribute('aria-label', displayName);
+            filename.textContent = displayName;
+            dialog.showModal();
+            video.play().catch(() => {});
+        }
+
+        function confirmDeleteVideo(displayName, storageName) {
+            return new Promise(resolve => {
+                const dialog = document.getElementById('deleteDialog');
+                const message = document.getElementById('deleteMessage');
+                const confirmButton = document.getElementById('confirmDelete');
+                const cancelButton = document.getElementById('cancelDelete');
+
+                const preview = document.getElementById('deletePreview');
+                preview.src = `/api/file/${encodeURIComponent(storageName)}`;
+                preview.load();
+
+                message.textContent = `Permanently delete "${displayName}"? This cannot be undone.`;
+
+                const cleanup = () => {
+                    confirmButton.removeEventListener('click', onConfirm);
+                    cancelButton.removeEventListener('click', onCancel);
+                    dialog.removeEventListener('cancel', onCancel);
+                    dialog.removeEventListener('close', onClose);
+                };
+
+                const finish = result => {
+                    cleanup();
+                    dialog.close();
+                    resolve(result);
+                };
+
+                const onConfirm = () => finish(true);
+                const onCancel = event => {
+                    event?.preventDefault();
+                    finish(false);
+                };
+
+                const onClose = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                confirmButton.addEventListener('click', onConfirm);
+                cancelButton.addEventListener('click', onCancel);
+                dialog.addEventListener('cancel', onCancel);
+                dialog.addEventListener('close', onClose);
+
+                dialog.showModal();
+            });
+        }
+
         loadVideos();
+    </script>
+
+    <dialog id="deleteDialog" class="delete-dialog">
+        <div class="dialog-icon">🗑️</div>
+        <h2>Delete clip?</h2>
+        <p id="deleteMessage"></p>
+
+        <video id="deletePreview" class="delete-preview" muted playsinline preload="metadata"></video>
+
+        <div class="dialog-actions">
+            <button id="cancelDelete" class="dialog-cancel">
+                Cancel
+            </button>
+            <button id="confirmDelete" class="dialog-confirm">
+                Delete
+            </button>
+        </div>
+    </dialog>
+
+    <dialog id="videoDialog" class="video-dialog" aria-label="Video viewer">
+        <button type="button" id="closeVideoDialog" class="video-dialog-close" aria-label="Close video">&times;</button>
+        <video id="videoDialogVideo" class="video-dialog-image" controls playsinline preload="metadata"></video>
+        <p id="videoDialogName" class="video-dialog-name"></p>
+    </dialog>
+
+    <script>
+        const videoDialog = document.getElementById('videoDialog');
+        document.getElementById('closeVideoDialog').onclick = () => videoDialog.close();
+
+        videoDialog.addEventListener('click', event => {
+            // Clicks on the backdrop land on the dialog element itself.
+            if (event.target !== videoDialog) return;
+            const bounds = videoDialog.getBoundingClientRect();
+            const outside = event.clientX < bounds.left || event.clientX > bounds.right ||
+                            event.clientY < bounds.top || event.clientY > bounds.bottom;
+            if (outside) videoDialog.close();
+        });
+
+        videoDialog.addEventListener('close', () => {
+            const video = document.getElementById('videoDialogVideo');
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+        });
     </script>
 </body>
 </html>"""
-

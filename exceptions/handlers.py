@@ -1,6 +1,7 @@
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+import html
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return HTMLResponse(
@@ -141,7 +142,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
                     <div class="panel">
                         <h2>Unable to complete request</h2>
-                        <p>Please try again or return to the homepage.</p>
+                        <p>{html.escape(str(exc.detail))}</p>
                         <a class="home-button" href="/">Return to Home →</a>
                     </div>
 

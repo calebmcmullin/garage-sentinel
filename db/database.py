@@ -257,7 +257,7 @@ async def get_files_by_user_id(user_id: int, filetypes: list[str] | None = None)
 
         return files
 
-async def get_file_by_storage_name(storage_name: str) -> File:
+async def get_file_by_storage_name(storage_name: str) -> File| None:
     async with get_connection() as conn:
         cursor = await conn.execute("""
             SELECT *
@@ -268,6 +268,9 @@ async def get_file_by_storage_name(storage_name: str) -> File:
 
         row = await cursor.fetchone()
 
+        if row is None:
+            return None
+
         return File(
             id=row[0],
             user_id=row[1],
@@ -276,6 +279,19 @@ async def get_file_by_storage_name(storage_name: str) -> File:
             storage_name=row[4],
             created_at=row[5],
         )
+
+async def delete_file_by_storage_name(storage_name: str) -> bool:
+    async with get_connection() as conn:
+        await conn.execute(
+            """
+            DELETE FROM files
+            WHERE storage_name = ?
+            """, (storage_name,)
+        )
+
+        await conn.commit()
+
+        return True
 
 async def log_activity(user_id: int, action: str, details: str) -> bool:
     async with get_connection() as conn:

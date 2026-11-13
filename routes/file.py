@@ -1,5 +1,5 @@
 import re
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 import models.file as file_model
 from models import User
@@ -7,8 +7,12 @@ from db import database
 from services import file_services
 from services.file_services import storage_path, get_thumbnail
 from routes.auth import get_current_user
+from routes.users import require_user
 
-router = APIRouter(prefix="/api")
+router = APIRouter(
+    prefix="/api",
+    dependencies=[Depends(require_user)]
+)
 
 MAX_FILE_SIZE = 250 * 1024 * 1024  # 200 MiB
 allowed_types = ["png", "jpg", "jpeg", "mp4"]
@@ -91,6 +95,32 @@ async def get_file(storage_name: str, size: str = "original"):
         media_type="image/png",
         content_disposition_type="inline"
     )
+
+@router.delete("/file/{storage_name}")
+async def delete_file(request: Request, storage_name: str):
+    user_id = request.session.get("user_id")
+
+    if not re.fullmatch(r"[0-9a-f]{32}", storage_name):
+        raise HTTPException(status_code=400, detail="Invalid storage name")
+
+    file_path = storage_path / storage_name
+
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file = await database.get_file_by_storage_name(storage_name)
+
+    if not isinstance(file, file_model.File):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Reject deletion of another user's file
+    if file.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to delete this file"
+        )
+
+    return await file_services.delete_user_file(user_id, storage_name)
 
 @router.get("/photos")
 async def get_photos(request: Request):

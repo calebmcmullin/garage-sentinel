@@ -32,11 +32,39 @@ async def add_file(user_id: int, filename: str, file_type: str, data: bytes) -> 
             )
         )
 
+        await database.log_activity(
+            user_id=user_id,
+            action="Uploaded file",
+            details=f"Uploaded {filename}"
+        )
+
         return file
 
     except Exception:
         file_path.unlink(missing_ok=True)
         raise
+
+async def delete_user_file(user_id: int, storage_name: str) -> bool:
+    file = await database.get_file_by_storage_name(storage_name)
+
+    if file is None:
+        return False
+
+    if file.user_id != user_id:
+        return False
+
+    is_deleted = await database.delete_file_by_storage_name(storage_name)
+
+    if is_deleted:
+        (storage_path / file.storage_name).unlink(missing_ok=True)
+
+        await database.log_activity(
+            user_id=user_id,
+            action="Deleted file",
+            details=f"Deleted {file.filename}"
+        )
+
+    return is_deleted
 
 async def get_files(user_id: int, file_types: list[str] | None = None) -> list[File]:
     # Default to photos if no argument
